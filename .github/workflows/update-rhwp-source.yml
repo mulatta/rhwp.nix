@@ -1,0 +1,59 @@
+name: Update rhwp source
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'rhwp tag or full commit hash, empty for latest tag'
+        required: false
+        default: ''
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: update-rhwp-source
+  cancel-in-progress: true
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            allow-import-from-derivation = false
+            extra-substituters = https://nix-community.cachix.org https://cache.mulatta.io
+            extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= cache.mulatta.io-1:DrV+Oy2azNyVKM7ihhD1QoOetRUnW+1G6RWToUpSO4U=
+      - name: Set up git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Update source pin
+        id: update
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          UPDATE_REF: ${{ inputs.ref }}
+        run: |
+          if [ -n "$UPDATE_REF" ]; then
+            nix develop -c ./packages/source/update.py --ref "$UPDATE_REF"
+          else
+            nix develop -c ./packages/source/update.py
+          fi
+      - name: Create pull request
+        if: steps.update.outputs.updated == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          .github/ci/create_pr.py \
+            "${{ steps.update.outputs.old_version }}" \
+            "${{ steps.update.outputs.new_version }}"

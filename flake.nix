@@ -1,88 +1,95 @@
 {
   description = "rhwp-nix";
 
+  nixConfig = {
+    allow-import-from-derivation = false;
+    extra-substituters = [ "https://cache.mulatta.io" ];
+    extra-trusted-public-keys = [ "cache.mulatta.io-1:DrV+Oy2azNyVKM7ihhD1QoOetRUnW+1G6RWToUpSO4U=" ];
+  };
+
   inputs = {
-    # keep-sorted start
-    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-    flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    rhwp-src.flake = false;
-    rhwp-src.url = "github:edwardkim/rhwp";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     rust-overlay.url = "github:oxalica/rust-overlay";
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
     treefmt-nix.url = "github:numtide/treefmt-nix";
-    # keep-sorted end
   };
 
   outputs =
-    inputs@{ flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
+    inputs@{
+      self,
+      nixpkgs,
+      rust-overlay,
+      ...
+    }:
+    let
+      inherit (nixpkgs) lib;
+
       systems = [
         "x86_64-linux"
         "aarch64-linux"
         "aarch64-darwin"
       ];
 
-      imports = [ inputs.treefmt-nix.flakeModule ];
+      eachSystem = lib.genAttrs systems;
 
-      perSystem =
-        {
-          pkgs,
-          system,
-          ...
-        }:
+      pkgsFor = eachSystem (
+        system:
+        import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+          overlays = [ rust-overlay.overlays.default ];
+        }
+      );
+
+      packageNames = builtins.attrNames (
+        lib.filterAttrs (
+          name: type: type == "directory" && builtins.pathExists (./packages + "/${name}/package.nix")
+        ) (builtins.readDir ./packages)
+      );
+
+      mkPackagesFor =
+        pkgs:
         let
-          callPackage = pkgs.newScope {
-            rhwpSrc = inputs.rhwp-src;
-          };
-          wasm-bindgen-cli = callPackage ./packages/wasm-bindgen-cli { };
-          rhwp-wasm = callPackage ./packages/rhwp-wasm { inherit wasm-bindgen-cli; };
-          rhwp-cli = callPackage ./packages/rhwp-cli { };
-          rhwp-studio = callPackage ./packages/rhwp-studio { inherit rhwp-wasm; };
-          updater = callPackage ./packages/updater { };
+          scope = lib.makeScope pkgs.newScope (
+            self:
+            {
+              inherit inputs lib;
+              flake = self;
+
+              source = self.callPackage ./packages/source { };
+              inherit (self.source) version cargoHash wasmBindgenVersion;
+              rhwpSrc = self.source.src;
+              wasm-bindgen-cli = self.callPackage ./packages/wasm-bindgen-cli { };
+            }
+            // lib.genAttrs packageNames (name: self.callPackage (./packages + "/${name}/package.nix") { })
+          );
         in
-        {
-          _module.args.pkgs = import inputs.nixpkgs {
-            inherit system;
-            config.allowUnfree = true;
-            overlays = [ inputs.rust-overlay.overlays.default ];
-          };
+        lib.filterAttrs (_name: lib.isDerivation) (lib.genAttrs packageNames (name: scope.${name}));
 
-          packages = {
-            inherit
-              rhwp-wasm
-              rhwp-studio
-              rhwp-cli
-              updater
-              ;
-            default = rhwp-cli;
-          };
+      packages = eachSystem (
+        system:
+        let
+          packages = mkPackagesFor pkgsFor.${system};
+        in
+        packages // { default = packages.rhwp-cli; }
+      );
+    in
+    {
+      inherit packages;
 
-          checks = {
-            inherit
-              rhwp-wasm
-              rhwp-studio
-              rhwp-cli
-              updater
-              ;
-          };
+      checks = eachSystem (
+        system:
+        lib.mapAttrs' (name: package: lib.nameValuePair "package-${name}" package) packages.${system}
+      );
 
-          devShells.default = pkgs.mkShell {
-            packages = [ pkgs.cargo ];
-          };
-
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs = {
-              # keep-sorted start
-              deadnix.enable = true;
-              keep-sorted.enable = true;
-              nixfmt.enable = true;
-              statix.enable = true;
-              # keep-sorted end
-            };
-          };
+      devShells = eachSystem (system: {
+        default = import ./devshell.nix {
+          pkgs = pkgsFor.${system};
+          formatter = packages.${system}.formatter;
         };
+      });
+
+      formatter = eachSystem (system: packages.${system}.formatter);
     };
 }

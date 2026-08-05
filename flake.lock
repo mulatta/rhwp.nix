@@ -1,25 +1,5 @@
 {
   "nodes": {
-    "flake-parts": {
-      "inputs": {
-        "nixpkgs-lib": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1785627969,
-        "narHash": "sha256-4dtXQk/NMePegK/nWp5NSeuZKLATItOq61lpEvmXqGw=",
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "rev": "427bf4bd9435fdf21321c8cc628c24efc14c0f7a",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1785828668,
@@ -36,27 +16,9 @@
         "type": "github"
       }
     },
-    "rhwp-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1782315019,
-        "narHash": "sha256-phDhnuF5UwUsXuHPOgihzT3hfyBlpQItwrLcSC8fgDs=",
-        "owner": "edwardkim",
-        "repo": "rhwp",
-        "rev": "10f5c51e65e0e8e9260cf1498972db14ea04c29e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "edwardkim",
-        "repo": "rhwp",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
-        "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
-        "rhwp-src": "rhwp-src",
         "rust-overlay": "rust-overlay",
         "treefmt-nix": "treefmt-nix"
       }
