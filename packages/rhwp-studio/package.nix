@@ -3,18 +3,17 @@
   buildNpmPackage,
   rhwp-wasm,
   rhwpSrc,
+  version,
 }:
 buildNpmPackage {
   pname = "rhwp-studio";
-  version = "0.7.17";
+  inherit version;
   src = rhwpSrc;
   sourceRoot = "source/rhwp-studio";
 
   npmDepsHash = "sha256-yXF5moTH7mwEGCNi+iPznPp7qsr1rY+k5ml/lJFF3ac=";
 
-  # rhwp-studio's vite.config.ts aliases `@wasm` to ../pkg, so the wasm bundle
-  # must live next to the studio dir at build time. The unpacked source dir is
-  # cp'd from the store with read-only mode; chmod the parent before mkdir.
+  # Vite expects wasm bundle next to rhwp-studio.
   preBuild = ''
     chmod -R u+w ..
     mkdir -p ../pkg

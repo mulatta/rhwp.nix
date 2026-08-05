@@ -1,9 +1,11 @@
 {
   lib,
   binaryen,
+  cargoHash,
   rhwpSrc,
   rust-bin,
   rustPlatform,
+  version,
   wasm-bindgen-cli,
 }:
 let
@@ -13,10 +15,10 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "rhwp-wasm";
-  version = "0.7.17";
+  inherit version;
   src = rhwpSrc;
 
-  cargoLock.lockFile = rhwpSrc + "/Cargo.lock";
+  inherit cargoHash;
 
   nativeBuildInputs = [
     rustToolchain
@@ -26,8 +28,7 @@ rustPlatform.buildRustPackage {
 
   doCheck = false;
 
-  # Skip wasm-pack: it fetches its own wasm-bindgen and version-checks
-  # against it. Calling cargo + wasm-bindgen directly does the same job.
+  # Avoid wasm-pack's bundled wasm-bindgen.
   buildPhase = ''
     runHook preBuild
     cargo build \
@@ -51,8 +52,7 @@ rustPlatform.buildRustPackage {
     runHook postInstall
   '';
 
-  # Exposed for the refresh-vendored-hashes workflow to target with nix-update
-  # without adding a build tool to the public packages output.
+  # Internal updater target.
   passthru.wasm-bindgen-cli = wasm-bindgen-cli;
 
   meta = {
