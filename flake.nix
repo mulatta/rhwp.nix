@@ -17,7 +17,6 @@
 
   outputs =
     inputs@{
-      self,
       nixpkgs,
       rust-overlay,
       ...

@@ -9,10 +9,11 @@ import os
 import re
 import subprocess
 import sys
-import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
+
+import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_PIN_PATH = REPO_ROOT / "packages/source/pin.json"
@@ -83,7 +84,7 @@ def latest_tag() -> str:
 def load_json(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text())
     if not isinstance(data, dict):
-        raise RuntimeError(f"expected a JSON object in {path}")
+        raise TypeError(f"expected a JSON object in {path}")
     return data
 
 
@@ -98,7 +99,7 @@ def parse_prefetch_result(output: str) -> tuple[str, Path]:
     if not isinstance(hash_value, str) or SRI_HASH_RE.fullmatch(hash_value) is None:
         raise RuntimeError("nix store prefetch-file returned invalid hash")
     if not isinstance(store_path, str):
-        raise RuntimeError("nix store prefetch-file returned no store path")
+        raise TypeError("nix store prefetch-file returned no store path")
     return hash_value, Path(store_path)
 
 
@@ -126,21 +127,21 @@ def load_toml(path: Path) -> dict[str, Any]:
     with path.open("rb") as file:
         data = tomllib.load(file)
     if not isinstance(data, dict):
-        raise RuntimeError(f"expected TOML object in {path}")
+        raise TypeError(f"expected TOML object in {path}")
     return data
 
 
 def read_package_version(path: Path) -> str:
     package = load_toml(path).get("package")
     if not isinstance(package, dict) or not isinstance(package.get("version"), str):
-        raise RuntimeError(f"package.version not found in {path}")
+        raise TypeError(f"package.version not found in {path}")
     return package["version"]
 
 
 def read_locked_package_version(path: Path, package_name: str) -> str:
     packages = load_toml(path).get("package")
     if not isinstance(packages, list):
-        raise RuntimeError(f"package list not found in {path}")
+        raise TypeError(f"package list not found in {path}")
     versions = [
         package.get("version")
         for package in packages
