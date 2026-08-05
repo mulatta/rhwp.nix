@@ -1,5 +1,5 @@
 {
-  description = "rhwp-nix";
+  description = "rhwp.nix";
 
   nixConfig = {
     allow-import-from-derivation = false;
