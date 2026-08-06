@@ -11,7 +11,7 @@ buildNpmPackage {
   src = rhwpSrc;
   sourceRoot = "source/rhwp-studio";
 
-  npmDepsHash = "sha256-yXF5moTH7mwEGCNi+iPznPp7qsr1rY+k5ml/lJFF3ac=";
+  npmDepsHash = "sha256-CllHO1jSRhePdQ8OarsJMjow07RnXNtpRP8vhCYCmtY=";
 
   # Vite expects wasm bundle next to rhwp-studio.
   preBuild = ''
