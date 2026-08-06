@@ -69,7 +69,7 @@ def push_branch(branch: str) -> None:
         run(["git", "push", "origin", f"HEAD:refs/heads/{branch}"])
 
 
-def create_or_update_pr(pr: PullRequest, *, auto_merge: bool) -> None:
+def create_or_update_pr(pr: PullRequest) -> None:
     run(["git", "checkout", "-B", pr.branch])
     run(["git", "add", *MANAGED_PATHS])
 
@@ -100,17 +100,11 @@ def create_or_update_pr(pr: PullRequest, *, auto_merge: bool) -> None:
             ]
         )
 
-    if auto_merge:
-        run(["gh", "pr", "merge", pr.branch, "--auto", "--merge"])
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("old_version", help="currently pinned rhwp version")
     parser.add_argument("new_version", help="new rhwp version")
-    parser.add_argument(
-        "--no-auto-merge", action="store_true", help="skip GitHub auto-merge"
-    )
     return parser.parse_args()
 
 
@@ -124,7 +118,7 @@ def main() -> None:
         title=f"rhwp: {args.old_version} -> {args.new_version}",
         body=f"https://github.com/edwardkim/rhwp/compare/v{args.old_version}...v{args.new_version}",
     )
-    create_or_update_pr(pr, auto_merge=not args.no_auto_merge)
+    create_or_update_pr(pr)
 
 
 if __name__ == "__main__":
