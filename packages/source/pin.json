@@ -1,7 +1,7 @@
 {
-  "version": "0.8.6",
-  "rev": "6831a0bb9bf108071ca8c72b3f4783a5af9e0e7a",
-  "hash": "sha256-4olsaNcJvjwMduc5/Gmg03A63imHdvK+swnPR4djF5M=",
-  "cargoHash": "sha256-hB9bOjfselNNqkHkHZnV1Fv8f5PUMxIuZQ1pUKG5FV4=",
+  "version": "0.8.7",
+  "rev": "1a76570e833917d15817415a53c09ad61ab3203f",
+  "hash": "sha256-Vik8+vVhP9RfK3VbR6Y0PeNSdH322BHulVd7s7GfvxM=",
+  "cargoHash": "sha256-JQEhhlMoeQ5050i5zVfGzWDerDMz8bY7FGqbnlX7utI=",
   "wasmBindgenVersion": "0.2.127"
 }
