@@ -14,6 +14,8 @@ MANAGED_PATHS = [
     "packages/rhwp-studio/package.nix",
     "packages/wasm-bindgen-cli/default.nix",
 ]
+# auto-merge.yaml only enables auto-merge on PRs carrying this label.
+LABEL = "dependencies"
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +84,20 @@ def create_or_update_pr(pr: PullRequest) -> None:
     push_branch(pr.branch)
 
     if pr_exists(pr.branch):
-        run(["gh", "pr", "edit", pr.branch, "--title", pr.title, "--body", pr.body])
+        run(
+            [
+                "gh",
+                "pr",
+                "edit",
+                pr.branch,
+                "--title",
+                pr.title,
+                "--body",
+                pr.body,
+                "--add-label",
+                LABEL,
+            ]
+        )
     else:
         run(
             [
@@ -97,6 +112,8 @@ def create_or_update_pr(pr: PullRequest) -> None:
                 pr.title,
                 "--body",
                 pr.body,
+                "--label",
+                LABEL,
             ]
         )
 
