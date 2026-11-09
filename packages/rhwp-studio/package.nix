@@ -13,6 +13,9 @@ buildNpmPackage {
 
   npmDepsHash = "sha256-JOboDYrydQcQS1s9iJ30wVWhPAl6BvGM571t1Vll5Qc=";
 
+  # npm packs the vendored file: dependency into its cache during installation.
+  makeCacheWritable = true;
+
   # Vite expects wasm bundle next to rhwp-studio.
   preBuild = ''
     chmod -R u+w ..
