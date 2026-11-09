@@ -9,11 +9,10 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
-
-import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_PIN_PATH = REPO_ROOT / "packages/source/pin.json"
