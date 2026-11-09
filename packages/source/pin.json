@@ -1,7 +1,7 @@
 {
   "version": "0.9.0",
   "rev": "c9095c5f67632e6721e800ccc7fb43ea49d26682",
-  "hash": "sha256-atLS1FG2YUqQjeqLxo3E5vOblSYorsp8TkPy15gZ1cg=",
+  "hash": "sha256-oG4dPc/1ni2OMX3HQ8BW9UQqS/Jk854L5OjckYYaoNs=",
   "cargoHash": "sha256-LjUuUxQTnNWIIjrh1x8jAieSzIPiCNQelPeEqnSYc3U=",
   "wasmBindgenVersion": "0.2.127"
 }

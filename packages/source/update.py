@@ -18,7 +18,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_PIN_PATH = REPO_ROOT / "packages/source/pin.json"
 FAKE_HASH = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 GOT_HASH_RE = re.compile(r"got:\s+(sha256-[A-Za-z0-9+/=]+)")
-SRI_HASH_RE = re.compile(r"sha256-[A-Za-z0-9+/]{43}=")
 SEMVER_TAG_RE = re.compile(
     r"v?(?:0|[1-9][0-9]*)\."
     r"(?:0|[1-9][0-9]*)\."
@@ -91,63 +90,53 @@ def save_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 
-def parse_prefetch_result(output: str) -> tuple[str, Path]:
-    data = json.loads(output)
-    hash_value = data.get("hash")
-    store_path = data.get("storePath")
-    if not isinstance(hash_value, str) or SRI_HASH_RE.fullmatch(hash_value) is None:
-        raise RuntimeError("nix store prefetch-file returned invalid hash")
-    if not isinstance(store_path, str):
-        raise TypeError("nix store prefetch-file returned no store path")
-    return hash_value, Path(store_path)
-
-
-def prefetch_source(ref: str) -> tuple[str, Path, str]:
+def resolve_rev(ref: str) -> str:
     if re.fullmatch(r"[0-9a-f]{40}", ref):
-        rev = ref
-        url = f"https://github.com/edwardkim/rhwp/archive/{ref}.tar.gz"
-    else:
-        rev = run(
-            [
-                "gh",
-                "api",
-                f"repos/edwardkim/rhwp/git/ref/tags/{ref}",
-                "--jq",
-                ".object.sha",
-            ]
-        ).stdout.strip()
-        url = f"https://github.com/edwardkim/rhwp/archive/refs/tags/{ref}.tar.gz"
-    result = run(["nix", "store", "prefetch-file", "--json", "--unpack", url])
-    hash_value, store_path = parse_prefetch_result(result.stdout)
-    return hash_value, store_path, rev
+        return ref
+    return run(
+        [
+            "gh",
+            "api",
+            f"repos/edwardkim/rhwp/git/ref/tags/{ref}",
+            "--jq",
+            ".object.sha",
+        ]
+    ).stdout.strip()
 
 
-def load_toml(path: Path) -> dict[str, Any]:
-    with path.open("rb") as file:
-        data = tomllib.load(file)
-    if not isinstance(data, dict):
-        raise TypeError(f"expected TOML object in {path}")
-    return data
+def fetch_upstream_file(rev: str, path: str) -> str:
+    # Reading single files avoids downloading the multi-GB archive twice.
+    return run(
+        [
+            "gh",
+            "api",
+            "-H",
+            "Accept: application/vnd.github.raw",
+            f"repos/edwardkim/rhwp/contents/{path}?ref={rev}",
+        ]
+    ).stdout
 
 
-def read_package_version(path: Path) -> str:
-    package = load_toml(path).get("package")
+def read_package_version(cargo_toml: str) -> str:
+    package = tomllib.loads(cargo_toml).get("package")
     if not isinstance(package, dict) or not isinstance(package.get("version"), str):
-        raise TypeError(f"package.version not found in {path}")
+        raise TypeError("package.version not found in Cargo.toml")
     return package["version"]
 
 
-def read_locked_package_version(path: Path, package_name: str) -> str:
-    packages = load_toml(path).get("package")
+def read_locked_package_version(cargo_lock: str, package_name: str) -> str:
+    packages = tomllib.loads(cargo_lock).get("package")
     if not isinstance(packages, list):
-        raise TypeError(f"package list not found in {path}")
+        raise TypeError("package list not found in Cargo.lock")
     versions = [
         package.get("version")
         for package in packages
         if isinstance(package, dict) and package.get("name") == package_name
     ]
     if len(versions) != 1 or not isinstance(versions[0], str):
-        raise RuntimeError(f"expected exactly one {package_name!r} package in {path}")
+        raise RuntimeError(
+            f"expected exactly one {package_name!r} package in Cargo.lock"
+        )
     return versions[0]
 
 
@@ -177,16 +166,16 @@ def parse_single_got_hash(output: str) -> str:
     return matches[0]
 
 
-def refresh_cargo_hash(data: dict[str, Any]) -> None:
+def refresh_fixed_output_hash(data: dict[str, Any], key: str, attr: str) -> None:
     assert_no_fake_hashes(data)
-    data["cargoHash"] = FAKE_HASH
+    data[key] = FAKE_HASH
     save_json(SOURCE_PIN_PATH, data)
-    result = run(["nix", "build", "--no-link", ".#rhwp-cli"], check=False)
+    result = run(["nix", "build", "--no-link", attr], check=False)
     combined = result.stdout + result.stderr
     if result.returncode == 0:
-        raise RuntimeError(".#rhwp-cli unexpectedly built with fake cargoHash")
+        raise RuntimeError(f"{attr} unexpectedly built with fake {key}")
     try:
-        data["cargoHash"] = parse_single_got_hash(combined)
+        data[key] = parse_single_got_hash(combined)
     except RuntimeError:
         sys.stderr.write(combined)
         raise
@@ -228,24 +217,24 @@ def update(ref: str, *, force: bool = False) -> bool:
     )
     originals = {path: path.read_text() for path in managed_paths}
     try:
-        source_hash, source_path, rev = prefetch_source(ref)
-        version = read_package_version(source_path / "Cargo.toml")
-        wasm_bindgen_version = read_locked_package_version(
-            source_path / "Cargo.lock", "wasm-bindgen"
-        )
+        rev = resolve_rev(ref)
         if data.get("rev") == rev and not force:
             return False
+        version = read_package_version(fetch_upstream_file(rev, "Cargo.toml"))
+        wasm_bindgen_version = read_locked_package_version(
+            fetch_upstream_file(rev, "Cargo.lock"), "wasm-bindgen"
+        )
 
         data.update(
             {
                 "version": version,
                 "rev": rev,
-                "hash": source_hash,
                 "wasmBindgenVersion": wasm_bindgen_version,
             }
         )
-        save_json(SOURCE_PIN_PATH, data)
-        refresh_cargo_hash(data)
+        # The source hash covers the trimmed tree, so only Nix can compute it.
+        refresh_fixed_output_hash(data, "hash", ".#rhwp-cli.src")
+        refresh_fixed_output_hash(data, "cargoHash", ".#rhwp-cli")
         refresh_nix_update_hashes()
         assert_no_fake_hashes(load_json(SOURCE_PIN_PATH))
     except BaseException:
