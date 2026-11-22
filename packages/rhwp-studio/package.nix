@@ -11,7 +11,7 @@ buildNpmPackage {
   src = rhwpSrc;
   sourceRoot = "source/rhwp-studio";
 
-  npmDepsHash = "sha256-JOboDYrydQcQS1s9iJ30wVWhPAl6BvGM571t1Vll5Qc=";
+  npmDepsHash = "sha256-zJaGLJ4lbK7ecBH9PCcPm/SwRAAao6igSe9UtGQGuiI=";
 
   # npm packs the vendored file: dependency into its cache during installation.
   makeCacheWritable = true;
