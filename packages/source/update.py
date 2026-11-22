@@ -7,8 +7,10 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
+import time
 import tomllib
 from collections.abc import Iterable
 from pathlib import Path
@@ -28,6 +30,7 @@ SEMVER_TAG_RE = re.compile(
 
 
 def run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    start = time.monotonic()
     result = subprocess.run(
         cmd,
         cwd=REPO_ROOT,
@@ -35,6 +38,7 @@ def run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[st
         capture_output=True,
         check=False,
     )
+    sys.stderr.write(f"[{time.monotonic() - start:.0f}s] {shlex.join(cmd)}\n")
     if check and result.returncode != 0:
         sys.stderr.write(result.stdout)
         sys.stderr.write(result.stderr)
@@ -189,6 +193,7 @@ def refresh_nix_update_hashes() -> None:
             "--flake",
             "--version",
             "skip",
+            "--no-src",
             "packages.x86_64-linux.rhwp-studio",
         ]
     )
