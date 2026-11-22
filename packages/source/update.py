@@ -10,6 +10,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from collections.abc import Iterable
@@ -20,6 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_PIN_PATH = REPO_ROOT / "packages/source/pin.json"
 FAKE_HASH = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 GOT_HASH_RE = re.compile(r"got:\s+(sha256-[A-Za-z0-9+/=]+)")
+DOC_LITERAL_RE = re.compile(r'"[^"\n]*mydocs/[^"\n]+"')
 SEMVER_TAG_RE = re.compile(
     r"v?(?:0|[1-9][0-9]*)\."
     r"(?:0|[1-9][0-9]*)\."
@@ -119,6 +121,35 @@ def fetch_upstream_file(rev: str, path: str) -> str:
             f"repos/edwardkim/rhwp/contents/{path}?ref={rev}",
         ]
     ).stdout
+
+
+def embedded_docs(rev: str) -> list[str]:
+    """Return the mydocs/ files that src/ quotes, which the build embeds."""
+    with tempfile.TemporaryDirectory() as tmp:
+        git = ["git", "-C", tmp]
+        run([*git, "init", "--quiet"])
+        run([*git, "remote", "add", "origin", "https://github.com/edwardkim/rhwp.git"])
+        run([*git, "config", "remote.origin.partialclonefilter", "blob:none"])
+        run([*git, "sparse-checkout", "set", "--no-cone", "/src/"])
+        run([*git, "fetch", "--quiet", "--no-tags", "--depth=1", "origin", rev])
+        run([*git, "checkout", "--quiet", rev])
+        tree = set(
+            run([*git, "ls-tree", "-r", "--name-only", rev, "mydocs"]).stdout.split(
+                "\n"
+            )
+        )
+        docs: set[str] = set()
+        for path in (Path(tmp) / "src").rglob("*"):
+            if not path.is_file():
+                continue
+            text = path.read_bytes()
+            if b"\0" in text:
+                continue
+            for literal in DOC_LITERAL_RE.findall(text.decode(errors="replace")):
+                doc = literal.rsplit("mydocs/", 1)[1].removesuffix('"')
+                if f"mydocs/{doc}" in tree:
+                    docs.add(doc)
+    return sorted(docs)
 
 
 def read_package_version(cargo_toml: str) -> str:
@@ -235,9 +266,10 @@ def update(ref: str, *, force: bool = False) -> bool:
                 "version": version,
                 "rev": rev,
                 "wasmBindgenVersion": wasm_bindgen_version,
+                "mydocs": embedded_docs(rev),
             }
         )
-        # The source hash covers the trimmed tree, so only Nix can compute it.
+        # The source hash covers the sparse checkout, so only Nix can compute it.
         refresh_fixed_output_hash(data, "hash", ".#rhwp-cli.src")
         refresh_fixed_output_hash(data, "cargoHash", ".#rhwp-cli")
         refresh_nix_update_hashes()

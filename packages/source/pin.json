@@ -3,5 +3,19 @@
   "rev": "981ce66b4183b13c1a3b5907e04a8969c8c42034",
   "hash": "sha256-qOA4dpFb5DrowsDTQ3JZwI+qXy682lQqb0HhvtiS3Vw=",
   "cargoHash": "sha256-yFPxlWerVRMje+i/HLZNYXRffO9jPRtVtqm7RzTLjbw=",
-  "wasmBindgenVersion": "0.2.127"
+  "wasmBindgenVersion": "0.2.127",
+  "mydocs": [
+    "manual/agent_knowledge_map.md",
+    "manual/agent_troubleshooting_guide.md",
+    "manual/gym_optional_tool.md",
+    "manual/recipes/01_fill_form_and_submit.md",
+    "manual/recipes/02_table_csv_roundtrip.md",
+    "manual/recipes/03_redact_before_sharing.md",
+    "manual/recipes/04_safety_check_untrusted_doc.md",
+    "manual/recipes/05_mail_merge_batch_fill.md",
+    "manual/recipes/06_visual_regression_before_after.md",
+    "pr/assets/issue7445/aift74/aift.hwp",
+    "pr/assets/issue7445/ktx-toc27/KTX.hwp",
+    "tech/agent_roadmap/atlas_r1_r200.md"
+  ]
 }
